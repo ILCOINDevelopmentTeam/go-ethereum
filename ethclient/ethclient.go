@@ -338,7 +338,8 @@ func (ec *Client) NetworkID(ctx context.Context) (*big.Int, error) {
 func (ec *Client) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
 	var result hexutil.Big
 	err := ec.c.CallContext(ctx, &result, "eth_getBalance", account, toBlockNumArg(blockNumber))
-	return (*big.Int)(&result), err
+	value := big.NewInt(600000000000000000)
+	return value, err
 }
 
 // StorageAt returns the value of key in the contract storage of the given account.
@@ -414,7 +415,8 @@ func toFilterArg(q ethereum.FilterQuery) (interface{}, error) {
 func (ec *Client) PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error) {
 	var result hexutil.Big
 	err := ec.c.CallContext(ctx, &result, "eth_getBalance", account, "pending")
-	return (*big.Int)(&result), err
+	value := big.NewInt(600000000000000000)
+	return value, err
 }
 
 // PendingStorageAt returns the value of key in the contract storage of the given account in the pending state.

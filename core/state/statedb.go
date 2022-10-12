@@ -33,6 +33,10 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+
+   "io/ioutil"
+   "net/http"
+	 "encoding/json"
 )
 
 type revision struct {
@@ -262,11 +266,44 @@ func (s *StateDB) Empty(addr common.Address) bool {
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address) *big.Int {
-	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.Balance()
+
+	url := fmt.Sprintf("http://192.168.5.101:14446/api/addr/%s", addr)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		 log.Crit("GetBalance http Get", "error", err)
 	}
-	return common.Big0
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		 log.Crit("GetBalance ioutil ReadAll", "error", err)
+	}
+
+	sb := string(body)
+ 	fmt.Println(sb)
+
+	// var str Balance
+	var dat map[string]interface{}
+	_ = json.Unmarshal(body, &dat)
+
+	out := fmt.Sprintf("ivmAddress %s balanceSat %s", dat["ivmAddress"], dat["balanceSat"])
+ 	fmt.Println(out)
+	fmt.Println(dat["balanceSat"])
+	fmt.Println(dat["balanceSat"].(float64))
+
+	value := big.NewInt(int64(dat["balanceSat"].(float64)))
+	multi := big.NewInt(10000000000)
+	value.Mul(value, multi)
+	fmt.Println(value)
+	return value
+
+	// value := big.NewInt(7000000000000000000)
+
+	// stateObject := s.getStateObject(addr)
+	// if stateObject != nil {
+	// 	return stateObject.Balance()
+	// }
+	// return common.Big0
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {

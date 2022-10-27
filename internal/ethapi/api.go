@@ -46,6 +46,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
+
+   "io/ioutil"
+   "net/http"
+	 "net/url"
 )
 
 // EthereumAPI provides an API to access Ethereum related information.
@@ -1735,6 +1739,37 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}
+
+	fmt.Println("SendTransaction 1")
+
+	data, err := tx.MarshalBinary()
+	if err != nil {
+		fmt.Println("SendTransaction err 1")
+		return common.Hash{}, err
+	}
+
+	// data Tune this to send a test transaction.
+	api_url := "http://192.168.5.101:14446/api/tx/send"
+	datahex := hexutil.Encode(data)
+
+	resp, err := http.PostForm(api_url, url.Values{"rawtx": {datahex}})
+	if err != nil {
+		 // log.Crit("SendTransaction http PostForm", "error", err)
+		 fmt.Println("SendTransaction http PostForm")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		// log.Crit("SendTransaction ioutil ReadAll", "error", err)
+		fmt.Println("SendTransaction ioutil ReadAll")
+	}
+
+	sb := string(body)
+	rawtx := fmt.Sprintf("rawtx %s", datahex)
+ 	fmt.Println(rawtx)
+ 	fmt.Println(sb)
+	fmt.Println("SendTransaction end")
+
 	return SubmitTransaction(ctx, s.b, tx)
 }
 

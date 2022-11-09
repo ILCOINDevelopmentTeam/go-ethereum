@@ -1742,15 +1742,9 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 
 	fmt.Println("SendTransaction 1")
 
-	data, err := tx.MarshalBinary()
-	if err != nil {
-		fmt.Println("SendTransaction err 1")
-		return common.Hash{}, err
-	}
-
 	// data Tune this to send a test transaction.
-	api_url := "http://192.168.5.101:14446/api/tx/send"
-	datahex := hexutil.Encode(data)
+	api_url := "http://192.168.5.101:14446/api/tx/sivm"
+	datahex := hexutil.Encode(input)
 
 	resp, err := http.PostForm(api_url, url.Values{"rawtx": {datahex}})
 	if err != nil {

@@ -50,6 +50,7 @@ import (
    "io/ioutil"
    "net/http"
 	 "net/url"
+	 "encoding/json"
 )
 
 // EthereumAPI provides an API to access Ethereum related information.
@@ -477,6 +478,8 @@ func (s *PersonalAccountAPI) SendTransaction(ctx context.Context, args Transacti
 // able to decrypt the key it fails. The transaction is returned in RLP-form, not broadcast
 // to other nodes
 func (s *PersonalAccountAPI) SignTransaction(ctx context.Context, args TransactionArgs, passwd string) (*SignTransactionResult, error) {
+
+	fmt.Println("func (s *PersonalAccountAPI) SignTransaction")
 	// No need to obtain the noncelock mutex, since we won't be sending this
 	// tx into the transaction pool, but right back to the user
 	if args.From == nil {
@@ -518,6 +521,8 @@ func (s *PersonalAccountAPI) SignTransaction(ctx context.Context, args Transacti
 //
 // https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_sign
 func (s *PersonalAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr common.Address, passwd string) (hexutil.Bytes, error) {
+
+	fmt.Println("func (s *PersonalAccountAPI) Sign")
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: addr}
 
@@ -546,6 +551,8 @@ func (s *PersonalAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr 
 //
 // https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_ecRecover
 func (s *PersonalAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (common.Address, error) {
+
+	fmt.Println("func (s *PersonalAccountAPI) EcRecover")
 	if len(sig) != crypto.SignatureLength {
 		return common.Address{}, fmt.Errorf("signature must be %d bytes long", crypto.SignatureLength)
 	}
@@ -1759,12 +1766,24 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	}
 
 	sb := string(body)
+ 	fmt.Println(sb)
+
+	// var str Balance
+	var dat map[string]interface{}
+	_ = json.Unmarshal(body, &dat)
+
+	out := fmt.Sprintf("txid %s", dat["txid"])
+ 	fmt.Println(out)
+
 	rawtx := fmt.Sprintf("rawtx %s", datahex)
  	fmt.Println(rawtx)
- 	fmt.Println(sb)
 	fmt.Println("SendTransaction end")
 
-	return SubmitTransaction(ctx, s.b, tx)
+	txid := fmt.Sprintf("%s", dat["txid"]);
+ 	fmt.Println(txid)
+
+	return common.HexToHash(txid), nil
+	// return SubmitTransaction(ctx, s.b, tx)
 }
 
 // Sign calculates an ECDSA signature for:
@@ -1777,6 +1796,8 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_sign
 func (s *TransactionAPI) Sign(addr common.Address, data hexutil.Bytes) (hexutil.Bytes, error) {
+
+	fmt.Println("func (s *TransactionAPI) Sign")
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: addr}
 
@@ -1802,6 +1823,8 @@ type SignTransactionResult struct {
 // The node needs to have the private key of the account corresponding with
 // the given from address and it needs to be unlocked.
 func (s *TransactionAPI) SignTransaction(ctx context.Context, args TransactionArgs) (*SignTransactionResult, error) {
+
+	fmt.Println("func (s *TransactionAPI) SignTransaction")
 	if args.Gas == nil {
 		return nil, fmt.Errorf("gas not specified")
 	}
@@ -1819,6 +1842,7 @@ func (s *TransactionAPI) SignTransaction(ctx context.Context, args TransactionAr
 	if err := checkTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
+
 	signed, err := s.sign(args.from(), tx)
 	if err != nil {
 		return nil, err

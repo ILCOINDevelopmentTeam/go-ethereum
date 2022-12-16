@@ -503,7 +503,7 @@ func (c *ChainConfig) IsEIP150(num *big.Int) bool {
 
 // IsEIP155 returns whether num is either equal to the EIP155 fork block or greater.
 func (c *ChainConfig) IsEIP155(num *big.Int) bool {
-	return isForked(c.EIP155Block, num)
+	return false
 }
 
 // IsEIP158 returns whether num is either equal to the EIP158 fork block or greater.

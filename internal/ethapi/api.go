@@ -632,19 +632,70 @@ func (api *BlockChainAPI) ChainId() *hexutil.Big {
 
 // BlockNumber returns the block number of the chain head.
 func (s *BlockChainAPI) BlockNumber() hexutil.Uint64 {
-	header, _ := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber) // latest header should always be available
-	return hexutil.Uint64(header.Number.Uint64())
+	fmt.Println("api.go BlockNumber")
+
+	url := "http://192.168.5.101:14446/api/status?q=getBlockCount"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		 log.Crit("BlockNumber http Get", "error", err)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		 log.Crit("BlockNumber ioutil ReadAll", "error", err)
+	}
+
+	sb := string(body)
+ 	fmt.Println(sb)
+
+	// var str Balance
+	var dat map[string]interface{}
+	_ = json.Unmarshal(body, &dat)
+
+	fmt.Println(dat["blocks"].(float64))
+
+	// header, _ := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber) // latest header should always be available
+	return hexutil.Uint64(int64(dat["blocks"].(float64)))
 }
 
 // GetBalance returns the amount of wei for the given address in the state of the
 // given block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta
 // block numbers are also allowed.
 func (s *BlockChainAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
-	if state == nil || err != nil {
-		return nil, err
+	fmt.Println("api.go GetBalance");
+
+	url := fmt.Sprintf("http://192.168.5.101:14446/api/addr/%s", address)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		 log.Crit("GetBalance http Get", "error", err)
 	}
-	return (*hexutil.Big)(state.GetBalance(address)), state.Error()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		 log.Crit("GetBalance ioutil ReadAll", "error", err)
+	}
+
+	sb := string(body)
+ 	fmt.Println(sb)
+
+	// var str Balance
+	var dat map[string]interface{}
+	_ = json.Unmarshal(body, &dat)
+
+	out := fmt.Sprintf("ivmAddress %s balanceSat %s", dat["ivmAddress"], dat["balanceSat"])
+ 	fmt.Println(out)
+	fmt.Println(dat["balanceSat"])
+	fmt.Println(dat["balanceSat"].(float64))
+
+	value := big.NewInt(int64(dat["balanceSat"].(float64)))
+	multi := big.NewInt(10000000000)
+	value.Mul(value, multi)
+	fmt.Println(value)
+
+	return (*hexutil.Big)(value), nil
 }
 
 // Result structs for GetProof
@@ -1528,20 +1579,47 @@ func (s *TransactionAPI) GetRawTransactionByBlockHashAndIndex(ctx context.Contex
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number
 func (s *TransactionAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	// Ask transaction pool for the nonce which includes pending transactions
-	if blockNr, ok := blockNrOrHash.Number(); ok && blockNr == rpc.PendingBlockNumber {
-		nonce, err := s.b.GetPoolNonce(ctx, address)
-		if err != nil {
-			return nil, err
-		}
-		return (*hexutil.Uint64)(&nonce), nil
+	// if blockNr, ok := blockNrOrHash.Number(); ok && blockNr == rpc.PendingBlockNumber {
+	// 	nonce, err := s.b.GetPoolNonce(ctx, address)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return (*hexutil.Uint64)(&nonce), nil
+	// }
+	// // Resolve block number and use its state to ask for the nonce
+	// state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	// if state == nil || err != nil {
+	// 	return nil, err
+	// }
+	// nonce := state.GetNonce(address)
+	// return (*hexutil.Uint64)(&nonce), state.Error()
+
+	fmt.Println("api.go GetTransactionCount")
+
+	url := "http://192.168.5.101:14446/api/status?q=getTxCount"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		 log.Crit("GetTransactionCount http Get", "error", err)
 	}
-	// Resolve block number and use its state to ask for the nonce
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
-	if state == nil || err != nil {
-		return nil, err
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		 log.Crit("BlockNumber ioutil ReadAll", "error", err)
 	}
-	nonce := state.GetNonce(address)
-	return (*hexutil.Uint64)(&nonce), state.Error()
+
+	sb := string(body)
+ 	fmt.Println(sb)
+
+	// var str Balance
+	var dat map[string]interface{}
+	_ = json.Unmarshal(body, &dat)
+
+	value := (uint64(dat["txs"].(float64)))
+	fmt.Println(value)
+
+	return (*hexutil.Uint64)(&value), nil
 }
 
 // GetTransactionByHash returns the transaction for the given hash
@@ -1586,64 +1664,83 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
-	tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
-	if err != nil {
-		// When the transaction doesn't exist, the RPC method should return JSON null
-		// as per specification.
-		return nil, nil
-	}
-	receipts, err := s.b.GetReceipts(ctx, blockHash)
-	if err != nil {
-		return nil, err
-	}
-	if len(receipts) <= int(index) {
-		return nil, nil
-	}
-	receipt := receipts[index]
+	// tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	// if err != nil {
+	// 	// When the transaction doesn't exist, the RPC method should return JSON null
+	// 	// as per specification.
+	// 	return nil, nil
+	// }
+	// receipts, err := s.b.GetReceipts(ctx, blockHash)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if len(receipts) <= int(index) {
+	// 	return nil, nil
+	// }
+	// receipt := receipts[index]
+	//
+	// // Derive the sender.
+	// bigblock := new(big.Int).SetUint64(blockNumber)
+	// signer := types.MakeSigner(s.b.ChainConfig(), bigblock)
+	// from, _ := types.Sender(signer, tx)
+	//
+	// fields := map[string]interface{}{
+	// 	"blockHash":         blockHash,
+	// 	"blockNumber":       hexutil.Uint64(blockNumber),
+	// 	"transactionHash":   hash,
+	// 	"transactionIndex":  hexutil.Uint64(index),
+	// 	"from":              from,
+	// 	"to":                tx.To(),
+	// 	"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+	// 	"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+	// 	"contractAddress":   nil,
+	// 	"logs":              receipt.Logs,
+	// 	"logsBloom":         receipt.Bloom,
+	// 	"type":              hexutil.Uint(tx.Type()),
+	// }
+	// // Assign the effective gas price paid
+	// if !s.b.ChainConfig().IsLondon(bigblock) {
+	// 	fields["effectiveGasPrice"] = hexutil.Uint64(tx.GasPrice().Uint64())
+	// } else {
+	// 	header, err := s.b.HeaderByHash(ctx, blockHash)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	gasPrice := new(big.Int).Add(header.BaseFee, tx.EffectiveGasTipValue(header.BaseFee))
+	// 	fields["effectiveGasPrice"] = hexutil.Uint64(gasPrice.Uint64())
+	// }
+	// // Assign receipt status or post state.
+	// if len(receipt.PostState) > 0 {
+	// 	fields["root"] = hexutil.Bytes(receipt.PostState)
+	// } else {
+	// 	fields["status"] = hexutil.Uint(receipt.Status)
+	// }
+	// if receipt.Logs == nil {
+	// 	fields["logs"] = []*types.Log{}
+	// }
+	// // If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	// if receipt.ContractAddress != (common.Address{}) {
+	// 	fields["contractAddress"] = receipt.ContractAddress
+	// }
 
-	// Derive the sender.
-	bigblock := new(big.Int).SetUint64(blockNumber)
-	signer := types.MakeSigner(s.b.ChainConfig(), bigblock)
-	from, _ := types.Sender(signer, tx)
+	fmt.Println("api.go GetTransactionReceipt")
 
 	fields := map[string]interface{}{
-		"blockHash":         blockHash,
-		"blockNumber":       hexutil.Uint64(blockNumber),
+		"blockHash":         nil,
+		"blockNumber":       nil,
 		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
-		"from":              from,
-		"to":                tx.To(),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"transactionIndex":  1,
+		"from":              nil,
+		"to":                nil,
+		"gasUsed":           0,
+		"cumulativeGasUsed": nil,
 		"contractAddress":   nil,
-		"logs":              receipt.Logs,
-		"logsBloom":         receipt.Bloom,
-		"type":              hexutil.Uint(tx.Type()),
+		"logs":              nil,
+		"logsBloom":         nil,
+		"type":              "simpleSend",
+		"status":            types.ReceiptStatusSuccessful,
 	}
-	// Assign the effective gas price paid
-	if !s.b.ChainConfig().IsLondon(bigblock) {
-		fields["effectiveGasPrice"] = hexutil.Uint64(tx.GasPrice().Uint64())
-	} else {
-		header, err := s.b.HeaderByHash(ctx, blockHash)
-		if err != nil {
-			return nil, err
-		}
-		gasPrice := new(big.Int).Add(header.BaseFee, tx.EffectiveGasTipValue(header.BaseFee))
-		fields["effectiveGasPrice"] = hexutil.Uint64(gasPrice.Uint64())
-	}
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		fields["root"] = hexutil.Bytes(receipt.PostState)
-	} else {
-		fields["status"] = hexutil.Uint(receipt.Status)
-	}
-	if receipt.Logs == nil {
-		fields["logs"] = []*types.Log{}
-	}
-	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
-	if receipt.ContractAddress != (common.Address{}) {
-		fields["contractAddress"] = receipt.ContractAddress
-	}
+
 	return fields, nil
 }
 

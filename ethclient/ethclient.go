@@ -562,7 +562,7 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 		return err
 	}
 
-	rawtx := fmt.Sprintf("SendTransaction data(%s)", hexutil.Encode(data)
+	rawtx := fmt.Sprintf("SendTransaction data(%s)", hexutil.Encode(data))
  	fmt.Println(rawtx)
 
 	// data Tune this to send a test transaction.

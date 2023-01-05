@@ -1869,6 +1869,11 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	var dat map[string]interface{}
 	_ = json.Unmarshal(body, &dat)
 
+	if dat["txid"] == nil {
+		fmt.Println("Throw error here")
+		return common.Hash{}, errors.New(sb)
+	}
+
 	out := fmt.Sprintf("txid %s", dat["txid"])
  	fmt.Println(out)
 

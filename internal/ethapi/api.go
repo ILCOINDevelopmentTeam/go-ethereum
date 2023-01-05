@@ -1725,23 +1725,72 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 
 	fmt.Println("api.go GetTransactionReceipt")
 
-	fields := map[string]interface{}{
-		"blockHash":         nil,
-		"blockNumber":       nil,
-		"transactionHash":   hash,
-		"transactionIndex":  1,
-		"from":              nil,
-		"to":                nil,
-		"gasUsed":           0,
-		"cumulativeGasUsed": nil,
-		"contractAddress":   nil,
-		"logs":              nil,
-		"logsBloom":         nil,
-		"type":              "simpleSend",
-		"status":            types.ReceiptStatusSuccessful,
+	url := fmt.Sprintf("http://192.168.5.101:14446/api/tx/%s", hash)
+
+	fmt.Println(url)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		 log.Crit("GetTransactionReceipt http Get", "error", err)
 	}
 
-	return fields, nil
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		 log.Crit("GetTransactionReceipt ioutil ReadAll", "error", err)
+	}
+
+	sb := string(body)
+ 	fmt.Println(sb)
+
+	// var str Balance
+	var dat map[string]interface{}
+	_ = json.Unmarshal(body, &dat)
+
+ 	fmt.Println("blockheight")
+ 	fmt.Println(dat["blockheight"])
+
+	if dat["blockheight"] != -1 {
+		value := (int64(dat["blockheight"].(float64)))
+		fmt.Println("blockheight 2")
+		fmt.Println(value)
+
+		fields := map[string]interface{}{
+			"blockHash":         nil,
+			"blockNumber":       value,
+			"transactionHash":   hash,
+			"transactionIndex":  1,
+			"from":              nil,
+			"to":                nil,
+			"gasUsed":           0,
+			"cumulativeGasUsed": nil,
+			"contractAddress":   nil,
+			"logs":              nil,
+			"logsBloom":         nil,
+			"type":              "simpleSend",
+			"status":            types.ReceiptStatusSuccessful,
+		}
+
+		return fields, nil
+	}	else {
+		fields := map[string]interface{}{
+			"blockHash":         nil,
+			"blockNumber":       nil,
+			"transactionHash":   hash,
+			"transactionIndex":  1,
+			"from":              nil,
+			"to":                nil,
+			"gasUsed":           0,
+			"cumulativeGasUsed": nil,
+			"contractAddress":   nil,
+			"logs":              nil,
+			"logsBloom":         nil,
+			"type":              "simpleSend",
+			"status":            types.ReceiptStatusSuccessful,
+		}
+
+		return fields, nil
+	}
 }
 
 // sign is a helper function that signs a transaction with the private key of the given address.
